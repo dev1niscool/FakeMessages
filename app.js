@@ -7,6 +7,7 @@ let config = defaultConfig();
 let activeTab = 'conversation';
 let openOptions = new Set();
 let saveTimer, previewFrame, toastTimer, uploadTarget, dragId;
+let exportDownloadURL;
 let storageWarning = false;
 
 function el(tag, className, text) {
@@ -267,7 +268,10 @@ $('#generate').addEventListener('click',async()=>{
     const snapshot=normalizeConfig(config);const scale=Number($('#export-scale').value);const frame=$('#include-frame').checked;
     const data=await generatePng(snapshot,{frame,scale});const image=$('#export-image');image.src=data;
     await image.decode();$('#export-info').textContent=`${image.naturalWidth} × ${image.naturalHeight} · PNG`;
-    $('#download-png').href=data;$('#download-png').download=`${snapshot.contact.name.replace(/[^a-z0-9]+/gi,'-').toLowerCase()||'conversation'}.png`;
+    if(exportDownloadURL)URL.revokeObjectURL(exportDownloadURL);
+    const bytes=Uint8Array.from(atob(data.split(',')[1]),character=>character.charCodeAt(0));
+    exportDownloadURL=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
+    $('#download-png').href=exportDownloadURL;$('#download-png').download=`${snapshot.contact.name.replace(/[^a-z0-9]+/gi,'-').toLowerCase()||'conversation'}.png`;
     $('#export-dialog').showModal();
   }catch(error){notify(`Could not export: ${error.message}`);}finally{generate.disabled=false;generate.textContent='↓  Generate screenshot';}
 });
