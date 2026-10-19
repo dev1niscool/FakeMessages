@@ -1,5 +1,5 @@
-import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js';
-import { renderPhone, generatePng } from './phone.js';
+import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.0.1';
+import { renderPhone, generatePng } from './phone.js?v=1.0.1';
 
 const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = 'fake-messages:conversation:v1';

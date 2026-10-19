@@ -28,6 +28,8 @@ node --test tests/*.test.mjs
 
 In the repository's **Settings → Pages**, select **Deploy from a branch**, then **main** and **/ (root)**. Save. The included `.nojekyll` file allows GitHub Pages to serve the static files directly. No build action, API key, backend, or custom domain is required.
 
+When releasing source changes, update the `?v=` asset versions in `index.html` and the imports in `app.js` so returning visitors receive the updated files through GitHub Pages' browser cache.
+
 ## Data and export
 
 - Conversation text and uploaded images stay in your browser. Editing and generation do not send private draft data to a server. The site files are served normally by GitHub Pages.
