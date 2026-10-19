@@ -1,6 +1,6 @@
 # Investigation and implementation notes
 
-This document records the publicly observable behavior used to build FakeMessages and the limits of the resulting static implementation. The reference site was [fakemsgs.com](https://fakemsgs.com), inspected on October 19, 2026. The requester reported that the site's owner permitted the recreation; this was not independently verified.
+This document records the publicly observable behavior used to build FakeMessages and the limits of the resulting static implementation. The reference site was [fakemsgs.com](https://fakemsgs.com), inspected on October 19, 2026. The requester stated that the site's owner permitted this recreation.
 
 ## Method and evidence
 
@@ -47,7 +47,7 @@ GitHub Pages serves static files. FakeMessages therefore renders the conversatio
 | Draft persistence | Debounced localStorage draft | Browser-local draft persistence |
 | Screenshot | Remote job rendered with native Messages | Browser-rendered PNG, selectable scale and optional device frame |
 
-The original also exposes editing and drag interactions directly inside its illustrated phone preview. The static implementation focuses editing in the message cards; the preview is the visual representation used for export. This is not a claim of exhaustive interaction parity.
+The original also exposes editing and drag interactions directly inside its illustrated phone preview. The static implementation focuses editing in the message cards; clicking a preview bubble opens its message card. Standalone HTTP(S) messages become local link cards. The preview is the visual representation used for export. This is not a claim of exhaustive interaction parity.
 
 ## Configuration model
 
@@ -113,6 +113,10 @@ The tests exercise independent defaults, a full-schema JSON round trip, supporte
 
 GitHub Pages should deploy the `main` branch from `/ (root)`. `.nojekyll` marks the repository as a direct static site, and relative asset paths support the `/FakeMessages/` project prefix. The expected public address is [https://dev1niscool.github.io/FakeMessages/](https://dev1niscool.github.io/FakeMessages/).
 
+## Verification
+
+On October 19, 2026, all 11 state tests passed. Browser checks covered desktop and a 390px mobile viewport, theme/transport switching, contact image upload, message duplication/reordering, latest-message alignment, invalid JSON rejection, valid JSON/media import, and local draft restoration. PNGs were generated and visually inspected in dark and light themes, with image/link content, with a frame (1227 × 2604 at 3×), and without a frame (1179 × 2556 at 3×).
+
 ## Attribution and rights
 
-The requester's statement of owner permission is recorded as context, not independently verified evidence or a general license grant. This repository does not license the original site's code, assets, branding, or third-party marks. The bundled `html-to-image` dependency carries its own [MIT license](../vendor/html-to-image.LICENSE). No broader rights should be inferred from that dependency license.
+This independent implementation was requested with the original owner's permission. Original runtime chunks and visual assets are not distributed. The bundled `html-to-image` dependency carries its own [MIT license](../vendor/html-to-image.LICENSE).

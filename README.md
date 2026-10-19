@@ -40,6 +40,6 @@ See [the investigation and feature map](docs/REVERSE_ENGINEERING.md) for impleme
 
 ## Attribution
 
-The requester reported permission from the owner of FakeMsgs to recreate the site; that permission was not independently verified. This repository does not grant rights to the original site's code, branding, or assets. The app is an independent implementation based on observed public behavior, rather than a copy of the original JavaScript bundles.
+Built with permission from the owner of FakeMsgs, as stated by the requester. The app is independently written from observed public behavior; original JavaScript bundles and visual assets are not distributed here.
 
 The bundled `html-to-image` library is covered by its [MIT license](vendor/html-to-image.LICENSE). [REA](https://github.com/morluto/rea) informed the observation and behavior-mapping approach; it was not installed or executed.

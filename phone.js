@@ -131,7 +131,7 @@ function makeHeader(config) {
   back.append(svgIcon('back'));
   if (Number(config.unread_count) > 0) back.append(element('span', 'phone-unread', config.unread_count > 99 ? '99+' : config.unread_count));
   const person = element('div', 'phone-person');
-  const name = config.contact?.name || 'Alex';
+  const name = config.contact?.name || 'Contact';
   const avatar = element('div', 'phone-avatar');
   if (config.contact?.photo) avatar.append(imageNode(config.contact.photo, 'phone-avatar-image', name));
   else {
@@ -215,17 +215,26 @@ function makeLink(link) {
 function makeBubble(message, config, isLastInRun) {
   const fromMe = message.from === 'me';
   const transport = message.transport || config.transport;
+  let autoLink;
+  if (!message.link && !message.image && /^https?:\/\/\S+$/i.test((message.text || '').trim())) {
+    try {
+      const url = new URL(message.text.trim());
+      if (url.hostname && !url.username && !url.password) autoLink = { url: url.href };
+    } catch { /* Keep incomplete URLs as ordinary message text. */ }
+  }
+  const link = message.link || autoLink;
+  const text = autoLink ? '' : message.text;
   const row = element('div', `phone-message-row ${fromMe ? 'is-me' : 'is-them'}${isLastInRun ? ' is-last-in-run' : ''}`);
   const stack = element('div', 'phone-message-stack');
-  const bubble = element('div', `phone-bubble${fromMe && transport === 'sms' ? ' is-sms' : ''}${message.image || message.link ? ' has-media' : ''}`);
+  const bubble = element('div', `phone-bubble${fromMe && transport === 'sms' ? ' is-sms' : ''}${message.image || link ? ' has-media' : ''}`);
   if (message._id != null) {
     bubble.dataset.messageId = String(message._id);
     row.dataset.messageId = String(message._id);
   }
   if (message.image) bubble.append(imageNode(message.image, 'phone-message-image', 'Shared photo'));
-  if (message.text) bubble.append(element('div', 'phone-message-text', message.text));
-  if (message.link) bubble.append(makeLink(message.link));
-  if (!message.text && !message.image && !message.link) bubble.append(element('div', 'phone-message-text', '\u00a0'));
+  if (text) bubble.append(element('div', 'phone-message-text', text));
+  if (link) bubble.append(makeLink(link));
+  if (!text && !message.image && !link) bubble.append(element('div', 'phone-message-text', '\u00a0'));
   if (Array.isArray(message.reactions) && message.reactions.length) {
     row.classList.add('has-reactions');
     const reactions = element('div', 'phone-reactions');
@@ -235,7 +244,7 @@ function makeBubble(message, config, isLastInRun) {
     });
     bubble.append(reactions);
   }
-  if (isLastInRun && !message.image && !message.link) {
+  if (isLastInRun && !message.image && !link) {
     const tail = document.createElementNS(SVG_NS, 'svg');
     tail.setAttribute('viewBox', '0 0 12 18');
     tail.setAttribute('aria-hidden', 'true');
@@ -260,7 +269,7 @@ function makeComposer(config) {
   const footer = element('div', 'phone-footer');
   if (config.notifications_silenced) {
     const silenced = element('div', 'phone-silenced');
-    silenced.append(svgIcon('moon'), element('span', '', `${config.contact?.name || 'Alex'} has notifications silenced`));
+    silenced.append(svgIcon('moon'), element('span', '', `${config.contact?.name || 'Contact'} has notifications silenced`));
     footer.append(silenced);
   }
   const composer = element('div', 'phone-composer');
@@ -276,7 +285,7 @@ function makeComposer(config) {
 /** Returns a detached, fixed-size phone element; callers can scale its container. */
 export function renderPhone(config = {}) {
   const device = element('div', `device phone-theme-${config.theme === 'light' ? 'light' : 'dark'}`);
-  device.setAttribute('aria-label', `Messages conversation with ${config.contact?.name || 'Alex'}`);
+  device.setAttribute('aria-label', `Messages conversation with ${config.contact?.name || 'Contact'}`);
   const screen = element('div', 'phone-screen');
   const background = config.background;
   if (background && background !== 'default') {
