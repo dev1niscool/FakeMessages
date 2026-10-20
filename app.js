@@ -1,6 +1,6 @@
-import { generateNativePng } from './native-renderer.js?v=1.2.1';
-import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.2.1';
-import { renderPhone, generatePng } from './phone.js?v=1.2.1';
+import { generateNativePng } from './native-renderer.js?v=1.3.0';
+import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.3.0';
+import { renderPhone, generatePng } from './phone.js?v=1.3.0';
 
 const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = 'fake-messages:conversation:v1';
@@ -279,7 +279,7 @@ $('#generate').addEventListener('click',async()=>{
     $('#export-dialog').showModal();
   }catch(error){notify(`Could not export: ${error.message}`);}finally{generate.disabled=false;generate.textContent='↓  Generate screenshot';}
 });
-$('#renderer').addEventListener('change',()=>{const native=$('#renderer').value==='native';$('#export-scale').disabled=native;$('.preview-note').textContent=native?'Generate sends this conversation and its images to the FakeMsgs native renderer.':'Browser export stays on this device. Fonts and emoji depend on your system.';});
+$('#renderer').addEventListener('change',()=>{const native=$('#renderer').value==='native';$('#export-scale').disabled=native;$('.preview-note').textContent=native?'Native generation opens your private renderer and sends the conversation and images to FakeMsgs.':'Browser export stays on this device. Fonts and emoji depend on your system.';});
 window.addEventListener('pagehide',persist);
 new ResizeObserver(updatePreview).observe($('#phone-stage'));
 setInterval(()=>{if(config.status.time==='current')updatePreview();},60000);

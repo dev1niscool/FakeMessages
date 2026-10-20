@@ -12,14 +12,16 @@ The [REA README](https://github.com/morluto/rea) informed the approach: inspect 
 
 ## Rendering architecture
 
-GitHub Pages serves the public editor. **Native iPhone**, the default export option, follows this path:
+GitHub Pages serves the public editor. The separately hosted companion remains private. **Native iPhone**, the default export option, follows this path:
 
-1. `native-renderer.js` requests an anonymous session from the [companion service](https://fake-messages-renderer.dev1niscool.chatgpt.site).
-2. The client converts embedded contact, message, link, and wallpaper images into uploaded assets. It resolves a “current” clock using the user's local time, removes local message IDs, and omits empty message cards.
-3. The companion forwards the prepared conversation to the owner's FakeMsgs renderer using that visitor's isolated upstream session.
-4. The browser polls the job through the companion and retrieves its finished PNG. It applies the optional encryption-label removal locally, then offers the download.
+1. `native-renderer.js` opens the companion's private [`/render` page](https://fake-messages-renderer.dev1niscool.chatgpt.site/render) in a small window or tab. The owner signs in with their authorized ChatGPT account if required.
+2. A window message exchange transfers the conversation only after checking the trusted origins, opener/window identity, and a per-request nonce. The authenticated companion page uses same-origin API requests to create an isolated anonymous upstream rendering session.
+3. Embedded contact, message, link, and wallpaper images become uploaded assets. A “current” clock is resolved using the user's local time; local message IDs and empty message cards are omitted. The companion forwards the prepared conversation to the owner's FakeMsgs renderer.
+4. The private page polls the job, retrieves its PNG, and returns generated data to the trusted editor through the same nonce-bound exchange. The browser applies the optional encryption-label removal locally, then offers the download.
 
-The companion uses a fixed set of routes rather than accepting arbitrary upstream URLs. The request handler is mirrored in `server/native-renderer.mjs`. It validates origins, methods, session and job formats, upload types, request limits, and PNG responses; it does not use a shared visitor session. The browser keeps its anonymous bearer token in memory and sends it in `X-Renderer-Session`. The companion translates it to the upstream cookie. Responses are marked private and non-cacheable.
+The companion uses a fixed set of routes rather than accepting arbitrary upstream URLs. The request handler is mirrored in `server/native-renderer.mjs`, and the private page's bridge protocol is mirrored in `server/bridge.js`. The handler validates origins, methods, session and job formats, upload types, request limits, and PNG responses; it does not use a shared visitor session. An in-memory anonymous token is sent in `X-Renderer-Session` and translated by the companion to the upstream cookie. Responses are marked private and non-cacheable. The hosted flow keeps authenticated API calls on the companion origin; public JavaScript contains no ChatGPT account credentials or deployment secrets.
+
+Native generation requires access to the private companion. If signing in disconnects the popup from its opener, return to the editor and click **Generate screenshot** again after login. The public editor and Browser preview do not require access to the companion. The popup exchange was verified locally with a signed-in development session, including a contact photo. The deployed private API also returned a native 1179 × 2556 PNG using authorized service access. The production browser reached the account sign-in screen; completing that sign-in requires the owner's session.
 
 | Companion endpoint | Upstream operation |
 | --- | --- |
@@ -84,7 +86,7 @@ Serve the frontend directly, with no compilation or package installation:
 python3 -m http.server 4173
 ```
 
-Open [localhost:4173](http://localhost:4173); JavaScript modules require HTTP. Browser preview works with this server alone. For local native generation, `native-renderer.js` targets `http://127.0.0.1:5173`, where the separate companion application must be running. The repository's `server/native-renderer.mjs` exports its request handler, not a server launcher. The complete companion source lives in its separate deployment project; the local `renderer-service/` directory is ignored here.
+Open [localhost:4173](http://localhost:4173); JavaScript modules require HTTP. Browser preview works with this server alone. For local native generation, run `node server/dev.mjs` in a second terminal. The native client connects directly to that local adapter at `http://127.0.0.1:5173`, which uses the owner-authorized FakeMsgs service. The request handler is in `server/native-renderer.mjs`, with a Worker entrypoint in `server/worker.js`. The complete hosted companion source lives in its separate deployment project; the local `renderer-service/` directory is ignored here.
 
 Run tests with:
 
@@ -92,9 +94,9 @@ Run tests with:
 node --test tests/*.test.mjs
 ```
 
-The current suite has 24 tests: 11 state tests and 13 adapter tests. They cover configuration validation and round trips, image and URL restrictions, reactions, message operations, defaults for the encryption setting, and the adapter's request/response boundaries. Unit tests do not establish native visual fidelity; actual returned PNGs must also be inspected.
+The current suite has 32 tests: 11 state tests, 13 adapter tests, and 8 private transport tests. They cover configuration validation and round trips, image and URL restrictions, reactions, message operations, defaults for the encryption setting, the adapter's request/response boundaries, and the popup's origin, source, nonce, timeout, cancellation, and binary-transfer behavior. Unit tests do not establish native visual fidelity; actual returned PNGs must also be inspected.
 
-GitHub Pages deploys **main → / (root)** at [dev1niscool.github.io/FakeMessages](https://dev1niscool.github.io/FakeMessages/). `.nojekyll` enables direct serving, and relative asset paths support the project prefix. The frontend remains public. Native generation additionally requires a separately published companion that permits the frontend origin and is accessible without a deployment login. Update asset version queries when releasing and keep the hosted adapter aligned with its repository mirror.
+GitHub Pages deploys **main → / (root)** at [dev1niscool.github.io/FakeMessages](https://dev1niscool.github.io/FakeMessages/). `.nojekyll` enables direct serving, and relative asset paths support the project prefix. The frontend remains public and the companion stays private. Keep the trusted editor origin configured in the bridge, retain the companion's deployment authentication, and use its authenticated `/render` page for hosted native generation. Update asset version queries when releasing and keep the hosted adapter and bridge aligned with their repository mirrors.
 
 ## Attribution
 

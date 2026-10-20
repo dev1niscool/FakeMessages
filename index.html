@@ -7,10 +7,10 @@
   <meta name="description" content="Create iMessage-style conversations with a live preview. Customize every detail and generate native iPhone screenshots.">
   <title>FakeMessages — Conversation Studio</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=1.2.1">
-  <link rel="stylesheet" href="./phone.css?v=1.2.1">
+  <link rel="stylesheet" href="./styles.css?v=1.3.0">
+  <link rel="stylesheet" href="./phone.css?v=1.3.0">
   <script src="./vendor/html-to-image.js" defer></script>
-  <script type="module" src="./app.js?v=1.2.1"></script>
+  <script type="module" src="./app.js?v=1.3.0"></script>
 </head>
 <body>
   <header class="topbar">
@@ -33,9 +33,10 @@
     <section class="preview" aria-label="Conversation preview">
       <div class="preview-heading"><div><span class="eyebrow">YOUR CONVERSATION</span><h1>A little imagination.<br>A convincing conversation.</h1></div><span class="live-badge"><i></i> Illustrated preview</span></div>
       <div id="phone-stage" class="phone-stage"><div id="phone-mount"></div></div>
-      <div class="export-controls"><label class="quality-option">Renderer <select id="renderer"><option value="native" selected>Native iPhone</option><option value="browser">Browser preview</option></select></label><label class="quality-option">Resolution <select id="export-scale" disabled><option value="1">1×</option><option value="2">2×</option><option value="3" selected>3× · High</option></select></label></div>
+      <div class="export-controls"><label class="quality-option">Renderer <select id="renderer"><option value="native" selected>Native iPhone · Private</option><option value="browser">Browser preview</option></select></label><label class="quality-option">Resolution <select id="export-scale" disabled><option value="1">1×</option><option value="2">2×</option><option value="3" selected>3× · High</option></select></label></div>
       <button id="generate" class="primary export-button"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg> Generate screenshot</button>
-      <p class="preview-note">Generate sends this conversation and its images to the FakeMsgs native renderer.</p>
+      <p class="preview-note">Native generation opens your private renderer and sends the conversation and images to FakeMsgs.</p>
+      <a class="subtle-button" href="https://fake-messages-renderer.dev1niscool.chatgpt.site/render" target="_blank" rel="noopener noreferrer">Open private renderer ↗</a>
     </section>
   </main>
   <footer class="site-footer"><span>A creative tool for fictional conversations.</span><span>Inspired by <a href="https://fakemsgs.com" target="_blank" rel="noopener noreferrer">FakeMsgs</a><span class="dot-separator">·</span><a href="https://github.com/dev1niscool/FakeMessages" target="_blank" rel="noopener noreferrer">View source ↗</a></span></footer>

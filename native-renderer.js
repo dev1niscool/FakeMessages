@@ -1,16 +1,19 @@
 /** The native service returns a real Messages screenshot, separate from the live illustration. */
+import { createPrivateTransport } from './private-transport.js?v=1.3.0';
 const SERVICE = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
   ? 'http://127.0.0.1:5173' : 'https://fake-messages-renderer.dev1niscool.chatgpt.site';
+const privateConnection = SERVICE.startsWith('https:') || new URLSearchParams(location.search).has('privateRenderer');
+const transport = privateConnection ? createPrivateTransport(SERVICE) : null;
 let session;
 const uploaded = new Map();
 
 async function request(path, options = {}) {
-  const response = await fetch(`${SERVICE}${path}`, {
+  const init = {
     ...options,
-    credentials: 'omit',
-    signal: AbortSignal.timeout(45000),
     headers: { ...(session ? { 'X-Renderer-Session': session } : {}), ...options.headers },
-  });
+  };
+  const response = transport ? await transport.send(path, init)
+    : await fetch(`${SERVICE}${path}`, {...init, credentials:'omit', signal:AbortSignal.timeout(45000)});
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.error || `Native renderer returned ${response.status}.`);
@@ -31,6 +34,7 @@ async function upload(value) {
 }
 
 export async function generateNativePng(config, onProgress = () => {}) {
+  if (transport) await transport.connect(onProgress);
   onProgress('Connecting to native renderer…');
   if (!session) {
     const result = await (await request('/api/session', { method: 'POST' })).json();

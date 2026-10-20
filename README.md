@@ -8,9 +8,9 @@ Edit contacts, messages, photos, links, Tapbacks, receipts, timestamps, appearan
 
 ## Screenshot options
 
-**Native iPhone** is the default renderer. It sends the conversation and its images through the [companion renderer](https://fake-messages-renderer.dev1niscool.chatgpt.site) to the original FakeMsgs native rendering service. This produces the actual iPhone Messages artwork, including the native HAHA Tapback, in a 1179 × 2556 PNG. Native generation depends on both external services being available.
+**Native iPhone** is the default renderer. It opens the owner's [private companion renderer](https://fake-messages-renderer.dev1niscool.chatgpt.site/render) in a small window or tab. Sign in with the authorized ChatGPT account if prompted. The companion sends the conversation and its images to the original FakeMsgs native rendering service and returns a 1179 × 2556 PNG with actual iPhone Messages artwork, including the native HAHA Tapback. Native generation requires access to the private companion and availability of both external services. If signing in disconnects the window from the editor, return to the editor and click **Generate screenshot** again.
 
-**Browser preview** exports the local HTML/CSS illustration at 1×, 2×, or 3×. It works without the native service, but fonts, emoji, and other rendering details depend on the browser and operating system. The live preview is an illustration; the native export can differ. Neither export includes a device border.
+**Browser preview** is available to everyone and exports the local HTML/CSS illustration at 1×, 2×, or 3×. It works without signing in or using the native service, but fonts, emoji, and other rendering details depend on the browser and operating system. The live preview is an illustration; the native export can differ. Neither export includes a device border.
 
 In **Advanced**, turn off **Show encryption label** to remove “Encrypted” above the messages. The setting persists in drafts and JSON as `show_encryption: false`. For native exports, the browser removes that label from the returned PNG by interpolating the surrounding background while retaining the layout. Detailed wallpapers may show a difference in the edited area.
 
@@ -42,9 +42,9 @@ node --test tests/*.test.mjs
 
 ## Deployment
 
-The public frontend is hosted on GitHub Pages from **main → / (root)** using **Deploy from a branch**. `.nojekyll` enables direct static serving. GitHub Pages does not host the native renderer: the companion must be deployed separately, allow the frontend's origin, and be publicly accessible for public native exports.
+The public frontend is hosted on GitHub Pages from **main → / (root)** using **Deploy from a branch**. `.nojekyll` enables direct static serving. The companion is deployed separately and stays private. Its authenticated `/render` page performs same-origin API calls and returns results to the trusted editor through a nonce-bound window message exchange. Public JavaScript contains no account credentials or deployment secrets. Public visitors can use the editor and Browser preview; native generation requires access to the private companion.
 
-When releasing changes, update the `?v=` asset versions in `index.html` and JavaScript imports so returning visitors receive current files. Keep the hosted adapter and `server/native-renderer.mjs` mirror aligned.
+When releasing changes, update the `?v=` asset versions in `index.html` and JavaScript imports so returning visitors receive current files. Keep the hosted adapter and bridge aligned with their source mirrors in `server/native-renderer.mjs` and `server/bridge.js`.
 
 See [the investigation and architecture notes](docs/REVERSE_ENGINEERING.md) for the configuration schema, observed API, and known limits.
 
