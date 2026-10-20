@@ -1,6 +1,6 @@
 /** The native service returns a real Messages screenshot, separate from the live illustration. */
 const SERVICE = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-  ? 'http://127.0.0.1:5173' : 'https://fake-messages-renderer.dev1niscool.chatgpt.site';
+  ? 'http://127.0.0.1:5173' : 'https://fake-messages-renderer.devinkancherlaawesome-bbc.workers.dev';
 let session;
 const uploaded = new Map();
 

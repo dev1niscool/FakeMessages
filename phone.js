@@ -1,6 +1,6 @@
 /** A local, DOM-based iPhone Messages renderer. No user content is interpreted as HTML. */
 
-import { createTapbackIcon } from './tapbacks.js?v=1.4.0';
+import { createTapbackIcon } from './tapbacks.js?v=1.5.0';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 let textMeasureContext;

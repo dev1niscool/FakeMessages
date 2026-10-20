@@ -5,3 +5,4 @@ test-results/
 
 # Hosted renderer has its own source repository.
 /renderer-service/
+/gitlab-renderer/

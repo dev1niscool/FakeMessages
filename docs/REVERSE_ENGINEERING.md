@@ -12,17 +12,17 @@ The [REA README](https://github.com/morluto/rea) informed the approach: inspect 
 
 ## Rendering architecture
 
-GitHub Pages serves the public editor. A separately hosted public cloud companion handles native rendering. **Native iPhone**, the default export option, follows this path:
+GitHub Pages serves the public editor. Backend source is maintained in the [private GitLab repository](https://gitlab.com/johnnystremio/fake-messages-renderer), and its public adapter runs on the owner's **Cloudflare Workers Free** account. FakeMsgs still produces the actual native screenshot. **Native iPhone**, the default export option, follows this path:
 
-1. `native-renderer.js` creates an isolated anonymous rendering session with a direct HTTPS request to the [cloud companion](https://fake-messages-renderer.dev1niscool.chatgpt.site). No account sign-in, popup, or connection to the site owner's computer is involved.
-2. Embedded contact, message, link, and wallpaper images become uploaded assets. A “current” clock is resolved using the user's local time; local message IDs and empty message cards are omitted. The companion forwards the prepared conversation to the owner's FakeMsgs renderer.
-3. The editor polls the job through the companion and retrieves its PNG. The browser applies the optional encryption-label removal locally, then offers the download.
+1. `native-renderer.js` creates an isolated anonymous rendering session with a direct HTTPS request to the [Cloudflare Worker](https://fake-messages-renderer.devinkancherlaawesome-bbc.workers.dev). No account sign-in, popup, or connection to the site owner's computer is involved.
+2. Embedded contact, message, link, and wallpaper images become uploaded assets. A “current” clock is resolved using the user's local time; local message IDs and empty message cards are omitted. The Worker forwards the prepared conversation to the owner's FakeMsgs renderer.
+3. The editor polls the job through the Worker and retrieves its PNG. The browser applies the optional encryption-label removal locally, then offers the download.
 
-The companion uses a fixed set of routes rather than accepting arbitrary upstream URLs. The request handler is mirrored in `server/native-renderer.mjs`. It validates origins, methods, session and job formats, upload types, request limits, and PNG responses; it does not use a shared visitor session. An in-memory anonymous token is sent in `X-Renderer-Session` and translated by the companion to the upstream cookie. Responses are marked private and non-cacheable. CORS permits the GitHub Pages editor origin. Public JavaScript contains no ChatGPT account credentials or deployment secrets.
+The Worker uses a fixed set of routes rather than accepting arbitrary upstream URLs. The request handler is mirrored in `server/native-renderer.mjs`. It validates origins, methods, session and job formats, upload types, request limits, and PNG responses; it does not use a shared visitor session. An in-memory anonymous token is sent in `X-Renderer-Session` and translated by the Worker to the upstream cookie. Responses are marked private and non-cacheable. CORS permits the GitHub Pages editor origin. Public JavaScript contains no account credentials or deployment secrets. The Worker requires no storage bindings or runtime secrets.
 
-Native rendering runs entirely through cloud services. The site owner's computer can be off, with no local listener, forwarded port, or tunnel. The localhost endpoint is selected only when a developer explicitly serves the editor at `localhost` or `127.0.0.1`. Native generation depends on the companion and original service remaining available. The `private-transport.js` and `server/bridge.js` files are legacy code from the earlier private-window flow and are not loaded by the public editor.
+Native rendering runs entirely through cloud services. The site owner's computer can be off, with no local listener, forwarded port, or tunnel. The localhost endpoint is selected only when a developer explicitly serves the editor at `localhost` or `127.0.0.1`. Native generation depends on Cloudflare and the original service remaining available. ChatGPT Sites is no longer part of the runtime. The `private-transport.js` and `server/bridge.js` files are historical code from the earlier private-window flow and are not loaded by the public editor.
 
-| Companion endpoint | Upstream operation |
+| Worker endpoint | Upstream operation |
 | --- | --- |
 | `POST /api/session` | `GET https://fakemsgs.com/api/health`, establish an anonymous session |
 | `POST /api/assets` | Upload multipart image data to `/api/assets` |
@@ -30,7 +30,7 @@ Native rendering runs entirely through cloud services. The site owner's computer
 | `GET /api/renders/{id}` | Poll the render job |
 | `GET /api/renders/{id}/image` | Retrieve the generated PNG |
 
-The original also exposes asset retrieval and render history, but the companion does not expose those routes. It is an adapter to the existing owner-authorized service, not a reconstruction of the native renderer.
+The original also exposes asset retrieval and render history, but the Worker does not expose those routes. It is an adapter to the existing owner-authorized service, not a reconstruction of the native renderer.
 
 **Browser preview** is a separate local export option using `phone.js`, `phone.css`, local vector Tapbacks, and the vendored `html-to-image` library. Its 393 × 852 viewport exports at 1×, 2×, or 3×. Native PNGs are 1179 × 2556. Both export options omit device borders. The browser illustration can differ from native output in font metrics, wrapping, custom emoji, effects, and layout.
 
@@ -71,11 +71,15 @@ Native Messages has no exposed setting for this label, so `show_encryption` is n
 
 ## Data handling and limits
 
-Editing, image preparation, JSON import/export, and Browser preview generation run locally. Drafts are stored in localStorage for the current origin and browser profile. Native generation sends conversation text, settings, and images through the companion to the original rendering server. Anonymous session isolation is not a claim that native data stays on the device, and this implementation does not establish the upstream service's retention policy.
+Editing, image preparation, JSON import/export, and Browser preview generation run locally. Drafts are stored in localStorage for the current origin and browser profile. Native generation sends conversation text, settings, and images through the Cloudflare Worker to the original rendering server. Anonymous session isolation is not a claim that native data stays on the device, and this implementation does not establish the upstream service's retention policy.
 
 User image uploads are limited to 5 MB and downsampled to a longest side of 1600 pixels. Canvas rasterization discards animation. Embedded image data makes exported JSON self-contained. Several images can exceed localStorage quotas, so JSON export remains useful for backups. Drafts do not synchronize across devices, profiles, domains, or local-server ports.
 
 Both renderers capture a fixed phone viewport, not a complete transcript of unlimited height. The position control determines which portion of a long conversation is visible. Native availability, queues, API behavior, and output geometry depend on external services. If native generation fails, the editor reports the error; Browser preview remains a selectable local alternative.
+
+The production adapter is deployed on Workers Free with no paid bindings or storage. Cloudflare currently limits that plan to 100,000 Worker requests per day across the account, 10 ms of CPU per request, and 128 MB of memory per isolate. Native generation consumes multiple requests per screenshot. The daily free cap causes requests to fail; it does not automatically upgrade the account or create paid overages. Large payloads can reach CPU or memory limits because the adapter buffers and validates uploads and responses. Keep the account on Free without paid add-ons; plan selection is an account setting, not enforced by this source. See [Cloudflare limits](https://developers.cloudflare.com/workers/platform/limits/).
+
+CORS restricts browser origins but does not authenticate automated callers. There is no per-IP rate limiter, bot challenge, or application-wide render budget. Abuse can interrupt availability by consuming the free quota or loading the upstream renderer.
 
 ## Development and deployment
 
@@ -85,7 +89,7 @@ Serve the frontend directly, with no compilation or package installation:
 python3 -m http.server 4173
 ```
 
-Open [localhost:4173](http://localhost:4173); JavaScript modules require HTTP. Browser preview works with this server alone. For local native generation, run `node server/dev.mjs` in a second terminal. The native client connects directly to that local adapter at `http://127.0.0.1:5173`, which uses the owner-authorized FakeMsgs service. The request handler is in `server/native-renderer.mjs`, with a Worker entrypoint in `server/worker.js`. The complete hosted companion source lives in its separate deployment project; the local `renderer-service/` directory is ignored here.
+Open [localhost:4173](http://localhost:4173); JavaScript modules require HTTP. Browser preview works with this server alone. For optional local native development, run `node server/dev.mjs` in a second terminal. The native client connects directly to that local adapter at `http://127.0.0.1:5173`, which uses the owner-authorized FakeMsgs service. The request handler is mirrored in `server/native-renderer.mjs`, with a Worker entrypoint in `server/worker.js`. The production source lives in the private GitLab repository; its local `gitlab-renderer/` checkout is ignored here. The ignored `renderer-service/` checkout is historical source from the retired ChatGPT Sites deployment. Neither local directory needs a running process for the public website to work.
 
 Run tests with:
 
@@ -95,7 +99,11 @@ node --test tests/*.test.mjs
 
 The current suite has 32 tests: 11 state tests, 13 adapter tests, and 8 retained legacy private transport tests. They cover configuration validation and round trips, image and URL restrictions, reactions, message operations, defaults for the encryption setting, the adapter's request/response boundaries, and the legacy popup's origin, source, nonce, timeout, cancellation, and binary-transfer behavior. The public native client uses direct HTTPS requests instead of the popup transport. Unit tests do not establish native visual fidelity; actual returned PNGs must also be inspected.
 
-GitHub Pages deploys **main → / (root)** at [dev1niscool.github.io/FakeMessages](https://dev1niscool.github.io/FakeMessages/). `.nojekyll` enables direct serving, and relative asset paths support the project prefix. Both the frontend and cloud companion are public. Keep the GitHub Pages editor origin allowed by the adapter's CORS policy, and retain the fixed API routes and request limits. Update asset version queries when releasing and keep the hosted adapter aligned with its repository mirror. Deployment does not require any process or network port on the site owner's computer.
+GitHub Pages deploys **main → / (root)** at [dev1niscool.github.io/FakeMessages](https://dev1niscool.github.io/FakeMessages/). `.nojekyll` enables direct serving, and relative asset paths support the project prefix. The frontend and Cloudflare API are public; GitLab source is private. Keep the GitHub Pages editor origin allowed by the adapter's CORS policy, and retain the fixed API routes and request limits. Update asset version queries when releasing and keep the GitLab adapter aligned with its repository mirror.
+
+Cloudflare's native GitLab integration published the backend. After the successful deployment, its Git repository connection was disconnected and the temporary deployment token was revoked. Automatic builds are no longer connected. The running Worker needs neither that deployment credential nor a continuing GitLab connection. Publishing future backend changes requires deployment authorization again. No runtime process, network port, or tunnel is required on the site owner's computer.
+
+Before switching the editor, the new production Worker passed an actual end-to-end check: GitHub Pages CORS preflight, isolated session creation, a 2,483-byte synthetic contact-photo upload, one default conversation including the native HAHA reaction, job polling, and a 1179 × 2556 PNG download. The 255,876-byte PNG was visually inspected. This validates that request; it does not guarantee operation at the plan's resource limits.
 
 ## Attribution
 
