@@ -1,6 +1,6 @@
 /** A local, DOM-based iPhone Messages renderer. No user content is interpreted as HTML. */
 
-import { createTapbackIcon } from './tapbacks.js?v=1.5.0';
+import { createTapbackIcon } from './tapbacks.js?v=1.6.0';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 let textMeasureContext;
@@ -335,7 +335,9 @@ export function renderPhone(config = {}) {
   messages.setAttribute('role', 'log');
   const messageList = element('div', 'phone-message-list');
   const items = Array.isArray(config.messages) ? config.messages : [];
-  messageList.append(makeConversationService(config));
+  if (config.transport === 'sms' || config.show_encryption !== false) {
+    messageList.append(makeConversationService(config));
+  }
   let previousDate = null;
   items.forEach((message, index) => {
     const parsed = message.at ? new Date(message.at) : null;

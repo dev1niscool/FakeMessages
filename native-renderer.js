@@ -1,3 +1,5 @@
+import { collapseConversationLabels } from './native-layout.js?v=1.6.0';
+
 /** The native service returns a real Messages screenshot, separate from the live illustration. */
 const SERVICE = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
   ? 'http://127.0.0.1:5173' : 'https://fake-messages-renderer.devinkancherlaawesome-bbc.workers.dev';
@@ -75,52 +77,18 @@ export async function generateNativePng(config, onProgress = () => {}) {
   onProgress('Preparing your PNG…');
   const blob = await (await request(`/api/renders/${id}/image`)).blob();
   return config.show_encryption === false && config.transport !== 'sms'
-    ? removeEncryptionLabel(blob) : blob;
+    ? removeConversationLabels(blob) : blob;
 }
 
-// Native Messages has no display setting for this label. Remove only that row
-// from the downloaded screenshot, interpolating its surrounding background.
-async function removeEncryptionLabel(blob) {
+// Native Messages has no setting for these labels; collapse them in the PNG.
+async function removeConversationLabels(blob) {
   const bitmap = await createImageBitmap(blob);
-  if (bitmap.width !== 1179 || bitmap.height !== 2556) {
-    bitmap.close();
-    throw new Error('The renderer changed its image size; hiding the encryption label needs an update.');
-  }
   const canvas = document.createElement('canvas');
   canvas.width = bitmap.width; canvas.height = bitmap.height;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(bitmap, 0, 0); bitmap.close();
-  const left = 483, width = 216, height = 39;
-  const searchTop = 450, searchHeight = 490;
-  const search = ctx.getImageData(left - 1, searchTop, width + 2, searchHeight);
-  // Recognize the actual label's edge pattern before touching pixels. In a long
-  // or scrolled conversation this row may contain a message instead.
-  const edges = Uint8Array.from(atob('EQQByQQAGgUAPQUAygUAGAYBLwYBoAYAygYAGAcBLwcBxwcBDggBGwgAMQgAxwgBDgkBGQkBLwkBoAkAygkAEQoALgoBcQoAyQoAEAsAGwsAMQsARwsBYQsAbAsBdAsBgwsAjAsBmgsBswsAxwsBDgwBGQwBLwwBRQwAVwwBawwAdAwBgwwAiwwBmgwBtAwAyQwAGw0ALw0BRw0AVg0BYw0AdQ0Bfw0BjA0AoA0AsQ0Bvw0ADA4BLg4BQg4BUA4AYA4BbA4Afw4Biw4Alg4AqA4BtQ4AxQ4BDA8BLw8BRQ8AVQ8BYQ8Baw8Afw8Bhw8Blg8Apw8BtQ8AvQ8AyQ8AHRAAPBAATRABWBAAdhABfhABihAAlhAAoBAAsxABvRAAyhAALhEBRREAUBEAaBEBeREAhxEBlxEApxEBthEAxhEByhEALhIBQhIBThIBWBIAdhIBfhIBihIAnRIBthIAxxIBDBMBLxMBRRMAUBMAaBMBeRMAgBMAlBMBoBMAuhMByRMAHRQAMRQATRQBVRQBaxQAfRQBihQAnRQBqhQAxhQByhQALhUBQhUBThUBWBUAeBUBfxUAlBUBoBUAuhUByRUAHRYAMRYATRYBVRYBaxYAexYAhxYBlBYBnRYBqhYAxhYBDBcBLxcBRRcAUBcAWRcAaBcBexcAhxcBlhcApxcBsxcBvhcAyhcALhgBQhgBThgBWhgAaBgBexgAhxgBlhgAqBgBshgBuxgBxRgBDBkBLxkBRRkAUBkAaBkBfhkAnRkBuxkByhkALhoBQhoBThoBYhoAeRoBfhoAixoBnhoBtBoAxRoAyhoALhsBQhsBThsBaBsBfRsAjBsBnxsBshsAxxsBehwBihwAfB0AeR4Bih4Aih8AeyAAdSEB'), char => char.charCodeAt(0));
-  const matches = [];
-  for (let row = 0; row <= searchHeight - height; row++) {
-    let normal = 0, inverted = 0;
-    for (let i = 0; i < edges.length; i += 3) {
-      const offset = ((row + edges[i + 1]) * (width + 2) + edges[i] + 1) * 4;
-      const delta = search.data[offset] - search.data[offset - 4];
-      if (Math.abs(delta) < 20) continue;
-      if ((delta > 0) === Boolean(edges[i + 2])) normal++; else inverted++;
-    }
-    const score = Math.max(normal, inverted) / (edges.length / 3);
-    if (score >= 0.85) matches.push({row, score});
-  }
-  if (!matches.length) return blob;
-  matches.sort((a, b) => b.score - a.score);
-  if (matches.some(match => Math.abs(match.row - matches[0].row) > 2)) return blob;
-  const top = searchTop + matches[0].row;
-  const pixels = ctx.getImageData(left - 1, top, width + 2, height);
-  for (let y = 0; y < height; y++) {
-    const a = y * (width + 2) * 4;
-    const b = a + (width + 1) * 4;
-    for (let x = 1; x <= width; x++) {
-      const amount = x / (width + 1), offset = a + x * 4;
-      for (let channel = 0; channel < 3; channel++) pixels.data[offset + channel] = Math.round(pixels.data[a + channel] * (1 - amount) + pixels.data[b + channel] * amount);
-    }
-  }
-  ctx.putImageData(pixels, left - 1, top);
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  if (!collapseConversationLabels(pixels)) return blob;
+  ctx.putImageData(pixels, 0, 0);
   return new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Could not prepare the PNG.')), 'image/png'));
 }

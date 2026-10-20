@@ -1,6 +1,6 @@
-import { generateNativePng } from './native-renderer.js?v=1.5.0';
-import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.5.0';
-import { renderPhone, generatePng } from './phone.js?v=1.5.0';
+import { generateNativePng } from './native-renderer.js?v=1.6.0';
+import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.6.0';
+import { renderPhone, generatePng } from './phone.js?v=1.6.0';
 
 const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = 'fake-messages:conversation:v1';
@@ -221,9 +221,9 @@ function exportJson(){
 function download(url,name){const a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();}
 function renderAdvanced(panel){
   panel.append(el('h2','section-title','Conversation details'),field('Location · optional',config.contact.location||'',v=>{optional(config.contact,'location',v);changed();},{maxLength:100,placeholder:'e.g. Chicago, IL'}));
-  const encryptionToggle=toggle('Show encryption label',config.show_encryption,v=>{config.show_encryption=v;changed();});
+  const encryptionToggle=toggle('Show iMessage and encryption labels',config.show_encryption,v=>{config.show_encryption=v;changed();});
   encryptionToggle.querySelector('input').setAttribute('aria-describedby','encryption-help');
-  const encryptionHelp=el('p','help-text','Show “Encrypted” above the messages.');encryptionHelp.id='encryption-help';
+  const encryptionHelp=el('p','help-text','Turn off to remove “iMessage” and “Encrypted” above the conversation and move the messages up.');encryptionHelp.id='encryption-help';
   panel.append(encryptionToggle,encryptionHelp);
   const actions=el('div','advanced-actions');actions.append(button('↥  Import JSON','secondary',()=>{$('#json-upload').value='';$('#json-upload').click();}),button('⌘  Edit JSON','secondary',()=>{$('#json-input').value=JSON.stringify(config,null,2);$('#json-error').textContent='';$('#json-dialog').showModal();}),button('↧  Export JSON','secondary',exportJson));panel.append(actions);
   const info=el('div','advanced-info');info.append(el('strong','','Saved on this device.'),document.createTextNode(' Your draft stays in this browser. Native generation sends the conversation and images to the FakeMsgs renderer; Browser preview exports locally. Export JSON to keep a backup.'));panel.append(info);

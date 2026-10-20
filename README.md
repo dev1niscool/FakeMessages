@@ -12,7 +12,7 @@ Edit contacts, messages, photos, links, Tapbacks, receipts, timestamps, appearan
 
 **Browser preview** is available to everyone and exports the local HTML/CSS illustration at 1×, 2×, or 3×. It works without signing in or using the native service, but fonts, emoji, and other rendering details depend on the browser and operating system. The live preview is an illustration; the native export can differ. Neither export includes a device border.
 
-In **Advanced**, turn off **Show encryption label** to remove “Encrypted” above the messages. The setting persists in drafts and JSON as `show_encryption: false`. For native exports, the browser removes that label from the returned PNG by interpolating the surrounding background while retaining the layout. Detailed wallpapers may show a difference in the edited area.
+In **Advanced**, turn off **Show iMessage and encryption labels** to remove both “iMessage” and “Encrypted” above the conversation and move the messages up beneath the contact header. The setting persists in drafts and JSON as `show_encryption: false`. It applies to the preview and saved screenshot; the message composer stays in place.
 
 ## Run locally
 

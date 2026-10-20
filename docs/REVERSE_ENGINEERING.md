@@ -16,7 +16,7 @@ GitHub Pages serves the public editor. Backend source is maintained in the [priv
 
 1. `native-renderer.js` creates an isolated anonymous rendering session with a direct HTTPS request to the [Cloudflare Worker](https://fake-messages-renderer.devinkancherlaawesome-bbc.workers.dev). No account sign-in, popup, or connection to the site owner's computer is involved.
 2. Embedded contact, message, link, and wallpaper images become uploaded assets. A “current” clock is resolved using the user's local time; local message IDs and empty message cards are omitted. The Worker forwards the prepared conversation to the owner's FakeMsgs renderer.
-3. The editor polls the job through the Worker and retrieves its PNG. The browser applies the optional encryption-label removal locally, then offers the download.
+3. The editor polls the job through the Worker and retrieves its PNG. The browser optionally removes the conversation's iMessage and encryption labels and collapses their space locally, then offers the download.
 
 The Worker uses a fixed set of routes rather than accepting arbitrary upstream URLs. The request handler is mirrored in `server/native-renderer.mjs`. It validates origins, methods, session and job formats, upload types, request limits, and PNG responses; it does not use a shared visitor session. An in-memory anonymous token is sent in `X-Renderer-Session` and translated by the Worker to the upstream cookie. Responses are marked private and non-cacheable. CORS permits the GitHub Pages editor origin. Public JavaScript contains no account credentials or deployment secrets. The Worker requires no storage bindings or runtime secrets.
 
@@ -47,7 +47,7 @@ State normalization selects supported properties instead of merging arbitrary im
 | `transport` | Default `imessage` or `sms` |
 | `unread_count` | Integer 0–999 |
 | `notifications_silenced` | Boolean |
-| `show_encryption` | Boolean, default `true`; `false` hides the encryption label |
+| `show_encryption` | Boolean, default `true`; `false` hides the top iMessage and encryption labels and collapses their space |
 | `clock_format` | 12 or 24 |
 | `scroll_position` | `bottom` or `latest-top` |
 | `background` | Optional preset, hex color, or embedded raster image |
@@ -65,9 +65,9 @@ Image fields accept embedded PNG, JPEG, WebP, or GIF data URLs. Remote image URL
 
 ## Encryption label
 
-**Advanced → Show encryption label** updates `show_encryption`, which persists in drafts and JSON. Older drafts with no field default to `true`. Browser rendering conditionally omits the label.
+**Advanced → Show iMessage and encryption labels** updates `show_encryption`, which persists in drafts and JSON. Older drafts with no field default to `true`. Browser rendering conditionally omits the entire conversation service block, so timestamps and messages move upward through normal layout. The SMS service label and bottom message composer are unaffected.
 
-Native Messages has no exposed setting for this label, so `show_encryption` is not forwarded upstream. For a native iMessage export with the setting disabled, the client interpolates pixels from either side of the label's area in the downloaded PNG. It retains the surrounding layout and image dimensions. Solid backgrounds work cleanly; detailed wallpapers may differ in that small area. The edit expects the current 1179 × 2556 output geometry and reports an error if the native service changes the image dimensions. SMS exports do not need this edit.
+Native Messages has no exposed setting for these labels, so `show_encryption` is not forwarded upstream. For a native iMessage export with the setting disabled, the client removes the labels from the downloaded PNG and moves the conversation upward while preserving the contact header, composer, and image dimensions. The edit expects the current 1179 × 2556 output geometry and reports an error if the native service changes the image dimensions. SMS exports do not need this edit. The native edit removes 78 pixels (26 points) and moves timestamps, bubbles, reactions, receipts, and any inline notification notice together. It recognizes the native label before editing; absent, ambiguous, or header-overlapping labels leave the PNG unchanged. Background joins are blended locally, so detailed wallpapers can differ in those areas.
 
 ## Data handling and limits
 
@@ -97,7 +97,7 @@ Run tests with:
 node --test tests/*.test.mjs
 ```
 
-The current suite has 32 tests: 11 state tests, 13 adapter tests, and 8 retained legacy private transport tests. They cover configuration validation and round trips, image and URL restrictions, reactions, message operations, defaults for the encryption setting, the adapter's request/response boundaries, and the legacy popup's origin, source, nonce, timeout, cancellation, and binary-transfer behavior. The public native client uses direct HTTPS requests instead of the popup transport. Unit tests do not establish native visual fidelity; actual returned PNGs must also be inspected.
+The current suite has 38 tests: 6 native layout tests, 11 state tests, 13 adapter tests, and 8 retained legacy private transport tests. The layout tests use actual native label pixels to check dark/light appearance, low contrast, complete conversation movement, unchanged header/composer, and safe handling of missing or ambiguous labels. They cover configuration validation and round trips, image and URL restrictions, reactions, message operations, defaults for the encryption setting, the adapter's request/response boundaries, and the legacy popup's origin, source, nonce, timeout, cancellation, and binary-transfer behavior. The public native client uses direct HTTPS requests instead of the popup transport. Unit tests do not establish native visual fidelity; actual returned PNGs must also be inspected.
 
 GitHub Pages deploys **main → / (root)** at [dev1niscool.github.io/FakeMessages](https://dev1niscool.github.io/FakeMessages/). `.nojekyll` enables direct serving, and relative asset paths support the project prefix. The frontend and Cloudflare API are public; GitLab source is private. Keep the GitHub Pages editor origin allowed by the adapter's CORS policy, and retain the fixed API routes and request limits. Update asset version queries when releasing and keep the GitLab adapter aligned with its repository mirror.
 
