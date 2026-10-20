@@ -1,57 +1,43 @@
 # Investigation and implementation notes
 
-This document records the publicly observable behavior used to build FakeMessages and the limits of the resulting static implementation. The reference site was [fakemsgs.com](https://fakemsgs.com), inspected on October 19, 2026. The requester stated that the site's owner permitted this recreation.
+The reference site is [fakemsgs.com](https://fakemsgs.com), inspected on October 19, 2026. The requester stated that the owner permitted this recreation and use of the original rendering service. This repository contains an independent editor, a browser illustration, and an adapter to that service.
 
-## Method and evidence
+## Evidence and scope
 
-The investigation combined browser observation with reads of the site's public HTML, CSS, JavaScript, and referenced assets. No access to its private source repository or server implementation was available.
+Browser observation and the public HTML, CSS, JavaScript, and referenced assets established the editor's tabs, configuration schema, default conversation, validation limits, local draft persistence, and render-job API. The HTML identified a Next.js/Turbopack React application. Original runtime bundles are not shipped in this repository.
 
-The HTML identified the application as a Next.js/Turbopack React site. Its page contained four editor tabs and a mobile Edit/Preview switch. The application bundle exposed the conversation schema, default example, input limits, local draft persistence, message operations, and API calls. The observed style rules established the basic editor layout, phone geometry, bubble styles, and system font stack.
+The original labels its live preview “Illustration only” and describes exported screenshots as rendered in the real Messages app. An actual completed render returned a 1179 × 2556 PNG with native Messages typography and Tapbacks. Its reported stages included install, seed, open, and screenshot, with an observed total of 8.54 seconds. This is one measured job, not a latency guarantee. Public responses do not reveal the private device setup or backend implementation.
 
-The [REA repository README](https://github.com/morluto/rea) supplied methodological inspiration: inspect observable structure and runtime behavior, record evidence, and separate conclusions from unknowns. REA was neither installed nor executed. Native binary analysis was unnecessary for the public browser interface.
+The [REA README](https://github.com/morluto/rea) informed the approach: inspect visible behavior, record evidence, and separate observations from unknowns. REA was neither installed nor executed.
 
-The application in this repository is newly written HTML, CSS, and JavaScript. Original runtime chunks are not shipped. Device decoration and background treatments are recreated locally; the application does not hotlink the reference site's assets or use its API.
+## Rendering architecture
 
-## The material architectural difference
+GitHub Pages serves the public editor. **Native iPhone**, the default export option, follows this path:
 
-The reference site's metadata describes its generated images as screenshots rendered in the real Messages app. Its preview labels itself “Illustration only.” The public client uses these endpoints:
+1. `native-renderer.js` requests an anonymous session from the [companion service](https://fake-messages-renderer.dev1niscool.chatgpt.site).
+2. The client converts embedded contact, message, link, and wallpaper images into uploaded assets. It resolves a “current” clock using the user's local time, removes local message IDs, and omits empty message cards.
+3. The companion forwards the prepared conversation to the owner's FakeMsgs renderer using that visitor's isolated upstream session.
+4. The browser polls the job through the companion and retrieves its finished PNG. It applies the optional encryption-label removal locally, then offers the download.
 
-| Endpoint | Purpose visible in the client |
+The companion uses a fixed set of routes rather than accepting arbitrary upstream URLs. The request handler is mirrored in `server/native-renderer.mjs`. It validates origins, methods, session and job formats, upload types, request limits, and PNG responses; it does not use a shared visitor session. The browser keeps its anonymous bearer token in memory and sends it in `X-Renderer-Session`. The companion translates it to the upstream cookie. Responses are marked private and non-cacheable.
+
+| Companion endpoint | Upstream operation |
 | --- | --- |
-| `GET /api/health` | Check renderer availability |
-| `POST /api/assets` | Upload an image as multipart form data |
-| `GET /api/assets/{id}` | Read an uploaded image |
-| `POST /api/renders` | Submit a conversation configuration |
-| `GET /api/renders` | Load previous render jobs |
-| `GET /api/renders/{id}` | Poll a queued or running job |
-| `GET /api/renders/{id}/image` | View or download its screenshot |
+| `POST /api/session` | `GET https://fakemsgs.com/api/health`, establish an anonymous session |
+| `POST /api/assets` | Upload multipart image data to `/api/assets` |
+| `POST /api/renders` | Submit the conversation to `/api/renders` |
+| `GET /api/renders/{id}` | Poll the render job |
+| `GET /api/renders/{id}/image` | Retrieve the generated PNG |
 
-The public health response reported an available service with two devices during inspection. That establishes that a service was advertised as available; it does not reveal how the server or devices were implemented. The client alone cannot reconstruct that backend.
+The original also exposes asset retrieval and render history, but the companion does not expose those routes. It is an adapter to the existing owner-authorized service, not a reconstruction of the native renderer.
 
-GitHub Pages serves static files. FakeMessages therefore renders the conversation in HTML/CSS and exports it locally using the vendored `html-to-image` library. It has no native Messages rendering, server queue, upload endpoint, or server screenshot history. Its output should be described as an iMessage-style mockup, not a native Messages capture. Font metrics, emoji artwork, wrapping, blur effects, and antialiasing can differ across browsers and operating systems.
+**Browser preview** is a separate local export option using `phone.js`, `phone.css`, local vector Tapbacks, and the vendored `html-to-image` library. Its 393 × 852 viewport exports at 1×, 2×, or 3×. Native PNGs are 1179 × 2556. Both export options omit device borders. The browser illustration can differ from native output in font metrics, wrapping, custom emoji, effects, and layout.
 
-## Feature map
+## Editor and configuration
 
-| Area | Reference behavior | Static implementation |
-| --- | --- | --- |
-| Workspace | Conversation, Appearance, Status bar, Advanced tabs; mobile Edit/Preview switch | Same main editing organization and responsive preview |
-| Contact | Name, uploaded photo, optional location | Local fields and embedded photo |
-| Messages | Incoming/outgoing messages, text, images and captions, links | Editable message cards with local preview |
-| Organization | Reorder and remove messages | Reorder, remove, and duplicate messages |
-| Per-message settings | Transport, receipt, timestamp | iMessage/SMS selection, delivered/read state, timestamp |
-| Reactions | One reaction per person; preset Tapbacks or custom emoji | Same two-person reaction schema |
-| Appearance | Light/dark, default transport, conversation position, backgrounds | Local theme, transport, position, preset/color/image backgrounds |
-| Conversation details | Silenced notifications and back-to-app text | Configurable preview details |
-| Status bar | Current/custom time, 12/24-hour clock, battery, charging, unread count, network, signal strength | Local controls and preview, with randomization |
-| Configuration | Import, edit, export JSON | Validated JSON import/editor and portable export |
-| Draft persistence | Debounced localStorage draft | Browser-local draft persistence |
-| Screenshot | Remote job rendered with native Messages | Browser-rendered PNG, selectable scale and optional device frame |
+The editor retains Conversation, Appearance, Status bar, and Advanced tabs, plus the mobile Edit/Preview switch. Message cards support incoming/outgoing senders, text, images and captions, links, transport, receipts, timestamps, and one reaction from each person. Messages can be reordered, duplicated, and removed. Clicking a preview bubble opens its message card. Contact, theme, background, notification, back-to-app, clock, battery, network, signal, and unread-count controls are available.
 
-The original also exposes editing and drag interactions directly inside its illustrated phone preview. The static implementation focuses editing in the message cards; clicking a preview bubble opens its message card. Standalone HTTP(S) messages become local link cards. The preview is the visual representation used for export. This is not a claim of exhaustive interaction parity.
-
-## Configuration model
-
-The public schema uses these fields. The new state module explicitly selects supported properties rather than merging arbitrary imported objects into rendering or style state.
+State normalization selects supported properties instead of merging arbitrary imported objects into render state.
 
 | Field | Values and meaning |
 | --- | --- |
@@ -60,6 +46,7 @@ The public schema uses these fields. The new state module explicitly selects sup
 | `transport` | Default `imessage` or `sms` |
 | `unread_count` | Integer 0–999 |
 | `notifications_silenced` | Boolean |
+| `show_encryption` | Boolean, default `true`; `false` hides the encryption label |
 | `clock_format` | 12 or 24 |
 | `scroll_position` | `bottom` or `latest-top` |
 | `background` | Optional preset, hex color, or embedded raster image |
@@ -67,56 +54,48 @@ The public schema uses these fields. The new state module explicitly selects sup
 | `status` | `time`, `battery`, `charging`, `network`, `wifi_strength`, `cellular_strength` |
 | `messages` | Array of 1–300 messages |
 
-A message has a local `_id` and `from` equal to `me` or `them`. Optional fields are `text`, embedded `image`, `link`, `transport`, `receipt`, ISO `at`, and `reactions`. A link has an HTTP(S) `url` and optional `title` and embedded `image`. A reaction has `from` plus either a preset `type` or custom `emoji`. The preset types are `love`, `like`, `dislike`, `laugh`, `emphasize`, and `question`.
+A message has a local `_id` and `from` equal to `me` or `them`. Optional fields are `text`, embedded `image`, `link`, `transport`, `receipt`, ISO `at`, and `reactions`. A link has an HTTP(S) `url` and optional `title` and embedded `image`. A reaction has `from` plus either a preset `type` or custom `emoji`. Preset types are `love`, `like`, `dislike`, `laugh`, `emphasize`, and `question`.
 
-The default sample preserves the reference's dark theme, “Fridge Support” contact, four cheese-themed messages, reactions, and final Delivered receipt. Defaults include iMessage transport, 12-hour time, a current clock, 87% battery, Wi-Fi, and bottom conversation position. Each new draft receives independent message IDs and nested state.
+The default preserves the dark “Fridge Support” sample, four cheese-themed messages, reactions, and final Delivered receipt. Other defaults include iMessage transport, 12-hour current time, 87% battery, Wi-Fi, bottom conversation position, and a visible encryption label. Fresh drafts receive independent message IDs and nested state.
 
-Validation requires a contact name of at most 80 characters and valid senders. An unfinished blank name is restored as “Contact” without discarding the draft. Text is capped at 8000 characters per message, location at 100, back-to-app text at 40, and custom reactions at 16. Numeric status values are rounded and clamped to their supported ranges. A custom clock accepts a valid 24-hour `HH:MM` value; display formatting is separate. Empty message text remains valid while composing a draft.
+Validation caps contact names at 80 characters, message text at 8000, location at 100, back-to-app text at 40, and custom reactions at 16. An unfinished blank contact name restores as “Contact” without discarding the draft. Numeric settings are rounded and clamped. Custom time accepts a valid 24-hour `HH:MM` value; display formatting is separate. Empty messages remain editable but are excluded from native submission.
 
-Image fields accept embedded PNG, JPEG, WebP, or GIF data URLs. Remote image URLs and SVG/HTML data are rejected. Links accept HTTP(S) URLs without embedded credentials. Unknown fields are discarded, duplicate/missing message IDs are regenerated, and malformed imports report an error before replacing the draft. Asset references such as the original server's `assets/...` paths are not portable to this app; upload the image locally instead.
+Image fields accept embedded PNG, JPEG, WebP, or GIF data URLs. Remote image URLs and SVG/HTML payloads are rejected. Links accept HTTP(S) URLs without embedded credentials. Unknown fields are discarded; duplicate or missing message IDs are regenerated. Invalid imports report an error before replacing the draft. Asset IDs from the original site's JSON are not portable image data; those images must be uploaded again locally.
 
-## Local rendering and data flow
+## Encryption label
 
-The browser loads only this repository's static application files and bundled export library for normal operation. It uses local system fonts, inline/local icons and styles, and embedded user image data. No external image or font request is needed to render or export a conversation. Link cards do not require fetching remote page metadata or thumbnails; their content is provided in the draft.
+**Advanced → Show encryption label** updates `show_encryption`, which persists in drafts and JSON. Older drafts with no field default to `true`. Browser rendering conditionally omits the label.
 
-Conversation editing, image processing, JSON import/export, and PNG generation run in the browser. Draft persistence uses localStorage on the current origin and browser profile. Loading the hosted site still makes ordinary requests to GitHub Pages, and explicitly following an external link opens that destination. The app does not send the private conversation or uploaded image data to either the reference site or a rendering service.
+Native Messages has no exposed setting for this label, so `show_encryption` is not forwarded upstream. For a native iMessage export with the setting disabled, the client interpolates pixels from either side of the label's area in the downloaded PNG. It retains the surrounding layout and image dimensions. Solid backgrounds work cleanly; detailed wallpapers may differ in that small area. The edit expects the current 1179 × 2556 output geometry and reports an error if the native service changes the image dimensions. SMS exports do not need this edit.
 
-User image uploads are limited to 5 MB and downsampled to a longest side of 1600 pixels. Decoding and drawing an image to a raster canvas discards animation. Uploaded assets become self-contained data URLs suitable for JSON backups and PNG export. A browser may reject an image it cannot decode even if its filename has a supported extension.
+## Data handling and limits
 
-## Export and persistence limits
+Editing, image preparation, JSON import/export, and Browser preview generation run locally. Drafts are stored in localStorage for the current origin and browser profile. Native generation sends conversation text, settings, and images through the companion to the original rendering server. Anonymous session isolation is not a claim that native data stays on the device, and this implementation does not establish the upstream service's retention policy.
 
-- The phone is a fixed viewport. PNG output contains the visible portion of the conversation, not an unlimited-height transcript. Long content is clipped to that viewport; position controls determine which section is displayed.
-- The preview scales to fit its panel. Export resolution is selected separately, and the device frame can be included or omitted.
-- Browser rendering is not pixel-identical to native Messages. System fonts and emoji vary by platform; visual effects may be simplified in the exported image.
-- Several embedded images can exceed localStorage quotas. A draft may remain usable in memory even when saving fails. Export JSON for a durable backup before closing the page or clearing site data.
-- Drafts do not synchronize between devices, browser profiles, domains, or local-server ports. A JSON file is the portable project format.
-- JSON files from the reference site may contain server asset IDs that cannot be resolved here. Text/settings can be mapped, but those images must be added again locally.
-- GitHub Pages supplies neither native screenshot devices nor a backend. Reproducing the reference site's server-rendered output would require a separate service and deployment design.
+User image uploads are limited to 5 MB and downsampled to a longest side of 1600 pixels. Canvas rasterization discards animation. Embedded image data makes exported JSON self-contained. Several images can exceed localStorage quotas, so JSON export remains useful for backups. Drafts do not synchronize across devices, profiles, domains, or local-server ports.
+
+Both renderers capture a fixed phone viewport, not a complete transcript of unlimited height. The position control determines which portion of a long conversation is visible. Native availability, queues, API behavior, and output geometry depend on external services. If native generation fails, the editor reports the error; Browser preview remains a selectable local alternative.
 
 ## Development and deployment
 
-The repository is served directly, with no compilation or package installation required:
+Serve the frontend directly, with no compilation or package installation:
 
 ```sh
 python3 -m http.server 4173
 ```
 
-Then open [localhost:4173](http://localhost:4173). JavaScript modules require HTTP serving rather than direct `file:` navigation.
+Open [localhost:4173](http://localhost:4173); JavaScript modules require HTTP. Browser preview works with this server alone. For local native generation, `native-renderer.js` targets `http://127.0.0.1:5173`, where the separate companion application must be running. The repository's `server/native-renderer.mjs` exports its request handler, not a server launcher. The complete companion source lives in its separate deployment project; the local `renderer-service/` directory is ignored here.
 
-State and import-validation checks run with:
+Run tests with:
 
 ```sh
 node --test tests/*.test.mjs
 ```
 
-The tests exercise independent defaults, a full-schema JSON round trip, supported embedded assets, unsafe URL and prototype payload rejection, numerical/time validation, reactions, message ordering, deep duplication, and minimum/maximum message counts. These state tests do not establish native Messages fidelity or replace browser checks of preview and PNG output.
+The current suite has 24 tests: 11 state tests and 13 adapter tests. They cover configuration validation and round trips, image and URL restrictions, reactions, message operations, defaults for the encryption setting, and the adapter's request/response boundaries. Unit tests do not establish native visual fidelity; actual returned PNGs must also be inspected.
 
-GitHub Pages should deploy the `main` branch from `/ (root)`. `.nojekyll` marks the repository as a direct static site, and relative asset paths support the `/FakeMessages/` project prefix. The expected public address is [https://dev1niscool.github.io/FakeMessages/](https://dev1niscool.github.io/FakeMessages/).
+GitHub Pages deploys **main → / (root)** at [dev1niscool.github.io/FakeMessages](https://dev1niscool.github.io/FakeMessages/). `.nojekyll` enables direct serving, and relative asset paths support the project prefix. The frontend remains public. Native generation additionally requires a separately published companion that permits the frontend origin and is accessible without a deployment login. Update asset version queries when releasing and keep the hosted adapter aligned with its repository mirror.
 
-## Verification
+## Attribution
 
-On October 19, 2026, all 11 state tests passed. Browser checks covered desktop and a 390px mobile viewport, theme/transport switching, contact image upload, message duplication/reordering, latest-message alignment, invalid JSON rejection, valid JSON/media import, and local draft restoration. PNGs were generated and visually inspected in dark and light themes, with image/link content, with a frame (1227 × 2604 at 3×), and without a frame (1179 × 2556 at 3×).
-
-## Attribution and rights
-
-This independent implementation was requested with the original owner's permission. Original runtime chunks and visual assets are not distributed. The bundled `html-to-image` dependency carries its own [MIT license](../vendor/html-to-image.LICENSE).
+This work was requested with the original owner's permission. The independent editor does not redistribute original runtime bundles. Native screenshots are produced by the owner's existing service; its private implementation is unknown. The bundled local-export library carries its [MIT license](../vendor/html-to-image.LICENSE).

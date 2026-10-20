@@ -12,6 +12,7 @@ test('default drafts use the original dark example without sharing state', () =>
   const first = defaultConfig();
   const second = defaultConfig();
   assert.equal(first.theme, 'dark');
+  assert.equal(first.show_encryption, true);
   assert.equal(first.contact.name, 'Fridge Support');
   assert.equal(first.messages.length, 4);
   assert.equal(first.messages[3].receipt, 'delivered');
@@ -26,7 +27,7 @@ test('default drafts use the original dark example without sharing state', () =>
 test('full configuration survives JSON export/import including embedded images', () => {
   const source = defaultConfig();
   Object.assign(source, {
-    theme: 'light', transport: 'sms', unread_count: 999, notifications_silenced: true,
+    theme: 'light', transport: 'sms', unread_count: 999, notifications_silenced: true, show_encryption: false,
     clock_format: 24, scroll_position: 'latest-top', background: pixel, back_to_app: 'Maps',
   });
   Object.assign(source.contact, { photo: pixel, location: 'Chicago' });
@@ -47,6 +48,7 @@ test('normalization supplies defaults, clamps status values, and repairs duplica
   source.unread_count = 1001;
   const result = normalizeConfig(source);
   assert.equal(result.theme, 'dark');
+  assert.equal(result.show_encryption, true);
   assert.equal(result.status.time, '09:41');
   assert.equal(result.status.battery, 100);
   assert.equal(result.status.wifi_strength, 0);
@@ -123,6 +125,7 @@ test('invalid conversation structure, sender, settings, and lengths produce acti
   assert.throws(() => normalizeConfig({ ...minimal(), status: { time: '24:01' } }), /HH:MM/);
   assert.throws(() => normalizeConfig({ ...minimal(), status: { battery: '90' } }), /number/);
   assert.throws(() => normalizeConfig({ ...minimal(), notifications_silenced: 'false' }), /true or false/);
+  assert.throws(() => normalizeConfig({ ...minimal(), show_encryption: 'false' }), /true or false/);
   assert.throws(() => normalizeConfig({ ...minimal(), theme: 'url(bad)' }), /Theme/);
   assert.throws(() => normalizeConfig({ ...minimal(), messages: [{ from: 'me', at: 'yesterday' }] }), /ISO/);
 });

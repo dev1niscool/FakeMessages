@@ -1,5 +1,6 @@
-import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.0.1';
-import { renderPhone, generatePng } from './phone.js?v=1.0.1';
+import { generateNativePng } from './native-renderer.js?v=1.2.1';
+import { defaultConfig, normalizeConfig, addMessage, moveMessage, duplicateMessage, removeMessage, reactionLabel, MAX_MESSAGES } from './state.js?v=1.2.1';
+import { renderPhone, generatePng } from './phone.js?v=1.2.1';
 
 const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = 'fake-messages:conversation:v1';
@@ -220,8 +221,12 @@ function exportJson(){
 function download(url,name){const a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();}
 function renderAdvanced(panel){
   panel.append(el('h2','section-title','Conversation details'),field('Location · optional',config.contact.location||'',v=>{optional(config.contact,'location',v);changed();},{maxLength:100,placeholder:'e.g. Chicago, IL'}));
+  const encryptionToggle=toggle('Show encryption label',config.show_encryption,v=>{config.show_encryption=v;changed();});
+  encryptionToggle.querySelector('input').setAttribute('aria-describedby','encryption-help');
+  const encryptionHelp=el('p','help-text','Show “Encrypted” above the messages.');encryptionHelp.id='encryption-help';
+  panel.append(encryptionToggle,encryptionHelp);
   const actions=el('div','advanced-actions');actions.append(button('↥  Import JSON','secondary',()=>{$('#json-upload').value='';$('#json-upload').click();}),button('⌘  Edit JSON','secondary',()=>{$('#json-input').value=JSON.stringify(config,null,2);$('#json-error').textContent='';$('#json-dialog').showModal();}),button('↧  Export JSON','secondary',exportJson));panel.append(actions);
-  const info=el('div','advanced-info');info.append(el('strong','','Private by design.'),document.createTextNode(' Your draft is saved in this browser. Images and conversations are processed on your device. Export JSON to move your project to another browser or keep a backup.'));panel.append(info);
+  const info=el('div','advanced-info');info.append(el('strong','','Saved on this device.'),document.createTextNode(' Your draft stays in this browser. Native generation sends the conversation and images to the FakeMsgs renderer; Browser preview exports locally. Export JSON to keep a backup.'));panel.append(info);
   panel.append(button('Reset to sample conversation','reset-button',()=>$('#reset-dialog').showModal()));
 }
 function renderPanel(){
@@ -265,16 +270,16 @@ $('#image-upload').addEventListener('change',async event=>{const file=event.targ
 $('#generate').addEventListener('click',async()=>{
   const generate=$('#generate');generate.disabled=true;generate.textContent='Rendering your screenshot…';
   try{
-    const snapshot=normalizeConfig(config);const scale=Number($('#export-scale').value);const frame=$('#include-frame').checked;
-    const data=await generatePng(snapshot,{frame,scale});const image=$('#export-image');image.src=data;
-    await image.decode();$('#export-info').textContent=`${image.naturalWidth} × ${image.naturalHeight} · PNG`;
+    const snapshot=normalizeConfig(config);const scale=Number($('#export-scale').value);const native=$('#renderer').value==='native';
+    const blob=native ? await generateNativePng(snapshot,text=>{generate.textContent=text;}) : await (await fetch(await generatePng(snapshot,{frame:false,scale}))).blob();
     if(exportDownloadURL)URL.revokeObjectURL(exportDownloadURL);
-    const bytes=Uint8Array.from(atob(data.split(',')[1]),character=>character.charCodeAt(0));
-    exportDownloadURL=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
+    exportDownloadURL=URL.createObjectURL(blob);const image=$('#export-image');image.src=exportDownloadURL;
+    await image.decode();$('#export-info').textContent=`${image.naturalWidth} × ${image.naturalHeight} · ${native?'Native iPhone':'Browser'} PNG`;
     $('#download-png').href=exportDownloadURL;$('#download-png').download=`${snapshot.contact.name.replace(/[^a-z0-9]+/gi,'-').toLowerCase()||'conversation'}.png`;
     $('#export-dialog').showModal();
   }catch(error){notify(`Could not export: ${error.message}`);}finally{generate.disabled=false;generate.textContent='↓  Generate screenshot';}
 });
+$('#renderer').addEventListener('change',()=>{const native=$('#renderer').value==='native';$('#export-scale').disabled=native;$('.preview-note').textContent=native?'Generate sends this conversation and its images to the FakeMsgs native renderer.':'Browser export stays on this device. Fonts and emoji depend on your system.';});
 window.addEventListener('pagehide',persist);
 new ResizeObserver(updatePreview).observe($('#phone-stage'));
 setInterval(()=>{if(config.status.time==='current')updatePreview();},60000);

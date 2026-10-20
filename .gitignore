@@ -2,3 +2,6 @@
 node_modules/
 test-results/
 .cache/
+
+# Hosted renderer has its own source repository.
+/renderer-service/

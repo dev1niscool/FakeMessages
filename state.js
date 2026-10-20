@@ -128,7 +128,7 @@ export function defaultConfig() {
   return {
     contact: { name: 'Fridge Support' },
     theme: 'dark', transport: 'imessage', unread_count: 3,
-    notifications_silenced: false, clock_format: 12, scroll_position: 'bottom',
+    notifications_silenced: false, show_encryption: true, clock_format: 12, scroll_position: 'bottom',
     status: {
       time: 'current', battery: 87, charging: false, network: 'wifi',
       wifi_strength: 3, cellular_strength: 4,
@@ -157,6 +157,7 @@ export function normalizeConfig(raw) {
     transport: choice(raw, 'transport', ['imessage', 'sms'], 'imessage', 'Message type'),
     unread_count: number(raw, 'unread_count', 3, 0, 999, 'Unread conversations'),
     notifications_silenced: boolean(raw, 'notifications_silenced', false, 'Notifications silenced'),
+    show_encryption: boolean(raw, 'show_encryption', true, 'Show encryption label'),
     clock_format: choice(raw, 'clock_format', [12, 24], 12, 'Clock format'),
     scroll_position: choice(raw, 'scroll_position', ['bottom', 'latest-top'], 'bottom', 'Conversation position'),
     status: {},

@@ -1,7 +1,9 @@
 /** A local, DOM-based iPhone Messages renderer. No user content is interpreted as HTML. */
 
+import { createTapbackIcon } from './tapbacks.js?v=1.2.1';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const REACTIONS = { love: '♥', like: '👍', dislike: '👎', laugh: 'HA', emphasize: '‼', question: '?' };
+let textMeasureContext;
 
 export const PHONE_DIMENSIONS = Object.freeze({ width: 409, height: 868, screenWidth: 393, screenHeight: 852 });
 
@@ -25,11 +27,12 @@ function svgIcon(name, className = '', attributes = {}) {
   if (className) className.split(' ').forEach(value => svg.classList.add(value));
   Object.entries(attributes).forEach(([key, value]) => svg.setAttribute(key, String(value)));
   const shapes = {
-    back: [['path', { d: 'm14.5 4-8 8 8 8' }]],
+    back: [['path', { d: 'm15 3-9 9 9 9' }]],
     chevron: [['path', { d: 'm9 5 7 7-7 7' }]],
     video: [['rect', { x: 2.2, y: 5.6, width: 13.3, height: 12.8, rx: 3 }], ['path', { d: 'm15.5 9 5.7-3.2v12.4L15.5 15' }]],
     plus: [['path', { d: 'M12 4v16M4 12h16' }]],
     mic: [['rect', { x: 8.5, y: 2, width: 7, height: 13, rx: 3.5, fill: 'currentColor', stroke: 'none' }], ['path', { d: 'M5.5 11v.8a6.5 6.5 0 0 0 13 0V11M12 18.5V22M9 22h6' }]],
+    waveform: [['path', { d: 'M3 10v4M7.5 6.5v11M12 2v20M16.5 7v10M21 10v4', 'stroke-width': 2.3 }]],
     moon: [['path', { d: 'M19.7 15.2A8.2 8.2 0 0 1 8.8 4.3a8.2 8.2 0 1 0 10.9 10.9Z', fill: 'currentColor', stroke: 'none' }]],
     bolt: [['path', { d: 'm14 1-9 13h6l-1 9 9-14h-6Z', fill: 'currentColor', stroke: 'none' }]],
     link: [['path', { d: 'm10 13 4-4M7.5 14.5l-1 1a3.5 3.5 0 0 0 5 5l4-4a3.5 3.5 0 0 0 0-5M16.5 9.5l1-1a3.5 3.5 0 0 0-5-5l-4 4a3.5 3.5 0 0 0 0 5' }]],
@@ -62,7 +65,7 @@ function currentTime(config, date = new Date()) {
 }
 
 function timeLabel(date, config) {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: config.clock_format !== 24 });
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: config.clock_format !== 24 }).toLowerCase();
 }
 
 function dateLabel(date) {
@@ -135,7 +138,7 @@ function makeHeader(config) {
   const avatar = element('div', 'phone-avatar');
   if (config.contact?.photo) avatar.append(imageNode(config.contact.photo, 'phone-avatar-image', name));
   else {
-    const initials = name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase();
+    const initials = Array.from(name.trim())[0]?.toUpperCase();
     avatar.append(element('span', 'phone-avatar-initials', initials || '?'));
   }
   const nameRow = element('div', 'phone-name-row');
@@ -166,7 +169,7 @@ function defaultMessageDate(config, count) {
 
 function makeConversationService(config) {
   const service = element('div', 'phone-conversation-service', config.transport === 'sms' ? 'Text Message • SMS' : 'iMessage');
-  if (config.transport !== 'sms') {
+  if (config.transport !== 'sms' && config.show_encryption !== false) {
     const encryption = element('small', 'phone-conversation-encryption');
     encryption.append(svgIcon('lock'), document.createTextNode('Encrypted'));
     service.append(encryption);
@@ -184,7 +187,7 @@ function positionConversation(device, config) {
     if (latest) {
       // Give the final message enough space after it to reach the viewport's top.
       // Keep its reaction visible when the reaction protrudes above the bubble.
-      const reactionInset = latest.classList.contains('has-reactions') ? 22 : 0;
+      const reactionInset = latest.classList.contains('has-reactions') ? 27 : 0;
       spacer.style.height = `${Math.max(0, messages.clientHeight - latest.offsetHeight - reactionInset - 8)}px`;
       messages.scrollTop = Math.max(0, latest.offsetTop - reactionInset);
       return;
@@ -212,6 +215,29 @@ function makeLink(link) {
   return card;
 }
 
+function nativeTextWidth(text) {
+  // Native Messages wraps at its maximum width, then hugs the longest line.
+  // Ordinary CSS max-width alone leaves every wrapped bubble the same width.
+  textMeasureContext ||= document.createElement('canvas').getContext('2d');
+  if (!textMeasureContext) return 262;
+  textMeasureContext.font = '400 17px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+  const measure = value => Math.max(0, textMeasureContext.measureText(value).width - Math.max(0, Array.from(value).length - 1) * .25);
+  let widest = 0;
+  for (const paragraph of String(text).split('\n')) {
+    let line = '';
+    for (const word of paragraph.split(/\s+/)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && measure(candidate) > 234) {
+        widest = Math.max(widest, measure(line));
+        line = word;
+      } else line = candidate;
+      if (measure(line) > 234) widest = 234;
+    }
+    widest = Math.max(widest, Math.min(234, measure(line)));
+  }
+  return Math.max(38, Math.min(262, Math.ceil(widest + 28.5)));
+}
+
 function makeBubble(message, config, isLastInRun) {
   const fromMe = message.from === 'me';
   const transport = message.transport || config.transport;
@@ -227,6 +253,7 @@ function makeBubble(message, config, isLastInRun) {
   const row = element('div', `phone-message-row ${fromMe ? 'is-me' : 'is-them'}${isLastInRun ? ' is-last-in-run' : ''}`);
   const stack = element('div', 'phone-message-stack');
   const bubble = element('div', `phone-bubble${fromMe && transport === 'sms' ? ' is-sms' : ''}${message.image || link ? ' has-media' : ''}`);
+  if (!message.image && !link) bubble.style.width = `${nativeTextWidth(text || '\u00a0')}px`;
   if (message._id != null) {
     bubble.dataset.messageId = String(message._id);
     row.dataset.messageId = String(message._id);
@@ -238,19 +265,20 @@ function makeBubble(message, config, isLastInRun) {
   if (Array.isArray(message.reactions) && message.reactions.length) {
     row.classList.add('has-reactions');
     const reactions = element('div', 'phone-reactions');
-    message.reactions.slice(0, 5).forEach(reaction => {
-      const reactionElement = element('span', `phone-reaction${reaction.from === 'me' ? ' from-me' : ''}${!reaction.emoji && reaction.type === 'love' ? ' is-love' : ''}${!reaction.emoji && reaction.type === 'laugh' ? ' is-laugh' : ''}`, reaction.emoji || REACTIONS[reaction.type] || '👍');
+    message.reactions.slice(0, 5).sort((a, b) => Number(b.from === 'me') - Number(a.from === 'me')).forEach(reaction => {
+      const reactionElement = element('span', `phone-reaction${reaction.from === 'me' ? ' from-me' : ''}`);
+      reactionElement.append(createTapbackIcon(reaction, { fromMe: reaction.from === 'me' }));
       reactions.append(reactionElement);
     });
     bubble.append(reactions);
   }
   if (isLastInRun && !message.image && !link) {
     const tail = document.createElementNS(SVG_NS, 'svg');
-    tail.setAttribute('viewBox', '0 0 12 18');
+    tail.setAttribute('viewBox', '0 0 22 22');
     tail.setAttribute('aria-hidden', 'true');
     tail.classList.add('phone-bubble-tail');
     const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', 'M0 0C1 10 2 14 12 17C7 18 2 17 0 14Z');
+    path.setAttribute('d', 'M0 0H15C11 9 12 15 20 21C21 23 17 22 13 20L0 12Z');
     path.setAttribute('fill', 'currentColor');
     tail.append(path);
     bubble.append(tail);
@@ -276,7 +304,7 @@ function makeComposer(config) {
   const plus = element('div', 'phone-composer-plus');
   plus.append(svgIcon('plus'));
   const field = element('div', 'phone-composer-field');
-  field.append(element('span', 'phone-composer-placeholder', config.transport === 'sms' ? 'Text Message • SMS' : 'iMessage'), svgIcon('mic', 'phone-composer-mic'));
+  field.append(element('span', 'phone-composer-placeholder', config.transport === 'sms' ? 'Text Message • SMS' : 'iMessage'), svgIcon('waveform', 'phone-composer-waveform'));
   composer.append(plus, field);
   footer.append(composer, element('div', 'phone-home-indicator'));
   return footer;
@@ -336,7 +364,7 @@ export function renderPhone(config = {}) {
 }
 
 /** Export exactly the DOM preview, with no remote upload or rendering service. */
-export async function generatePng(config, { frame = true, scale = 3 } = {}) {
+export async function generatePng(config, { frame = false, scale = 3 } = {}) {
   if (!window.htmlToImage?.toPng) throw new Error('The local image exporter is unavailable. Please reload and try again.');
   const holder = element('div', 'phone-export-holder');
   Object.assign(holder.style, { position: 'fixed', top: '0', left: '-20000px', width: 'max-content', zIndex: '-100', pointerEvents: 'none' });
